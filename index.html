@@ -53,7 +53,7 @@
 <body>
 <header>
   <h1>HRDPS Wind Map — BC Coast</h1>
-  <p>True ~2.5 km HRDPS 10 m wind (ECCC, via the hrdps-ingest pipeline → R2), Beaufort-coloured over a plain coastline. Scroll to zoom, drag to pan; play or scrub the 48 h timeline. <span style="opacity:.7">build 2026-06-28f (R2 2.5 km)</span></p>
+  <p>HRDPS 10 m wind (ECCC, via the hrdps-ingest pipeline → R2), Beaufort-coloured over a plain coastline — switch between <b>2.5 km</b> (full coast) and <b>1 km</b> (inshore). Scroll to zoom, drag to pan; play or scrub the 48 h timeline. <span style="opacity:.7">build 2026-06-28g</span></p>
 </header>
 
 <main>
@@ -61,6 +61,13 @@
     <div class="fld">
       <label for="region">Jump to region</label>
       <select id="region"></select>
+    </div>
+    <div class="fld">
+      <label for="res">Resolution</label>
+      <select id="res">
+        <option value="hrdps">2.5 km · full coast</option>
+        <option value="hrdps1km">1 km · inshore</option>
+      </select>
     </div>
     <div class="fld">
       <label>Zoom</label>
@@ -123,7 +130,9 @@ const REGIONS=[   // bbox = [lonW, latS, lonE, latN]  (order matches RKEYS / the
   ["Puget Sound",              [-123.3, 47.0, -122.2, 48.4]],
 ];
 const RKEYS=["haida-gwaii","west-coast-vancouver-i","broughtons-discovery","northern-georgia-strait","san-juan-gulf-islands","puget-sound"];
-const R2="https://pub-cb8eb71f75d64a57a0d021318ccd0ae7.r2.dev/hrdps";
+const R2_BASE="https://pub-cb8eb71f75d64a57a0d021318ccd0ae7.r2.dev";
+let resKey="hrdps";   // "hrdps" = 2.5 km (full coast) ; "hrdps1km" = 1 km (inshore W-nest)
+const resLabel = () => manifest ? "~"+(Math.round(manifest.res_deg*1110)/10)+" km" : "";
 
 const EDGES=[1,6,12,20,29,39,50,62,75,89,103,118];   // Beaufort km/h band edges -> force 0..12
 const COL=["#dfeaf2","#bfe3ec","#a6dd9f","#d7e84f","#f3c44d","#f0893b","#e44f2c","#c71d2b","#9a2240","#6b2a5a","#4a2370","#2c1a55","#14102e"];
@@ -156,7 +165,7 @@ function viewBBox(){
 /* ============================ R2 2.5 km (primary) ============================ */
 async function loadManifest(){
   setStatus("Loading 2.5 km index…");
-  manifest = await (await fetch(R2+"/manifest.json", {cache:"no-store"})).json();
+  manifest = await (await fetch(R2_BASE+"/"+resKey+"/manifest.json", {cache:"no-store"})).json();
   RUN = manifest.run; TIMES = manifest.hours;
   $("time").max = TIMES.length-1; if(hour>TIMES.length-1) hour=0; $("time").value=hour;
   buildTicks(); updateTimeLabel();
@@ -169,7 +178,7 @@ async function gunzip(u8){
 async function loadRegion(i){
   const key=RKEYS[i], rm=manifest.regions[key];
   setStatus("Loading 2.5 km — "+rm.name+"…");
-  let bytes = new Uint8Array(await (await fetch(R2+"/"+rm.file, {cache:"no-store"})).arrayBuffer());
+  let bytes = new Uint8Array(await (await fetch(R2_BASE+"/"+resKey+"/"+rm.file, {cache:"no-store"})).arrayBuffer());
   if(bytes[0]===0x1f && bytes[1]===0x8b) bytes = await gunzip(bytes);   // safety net (browser usually auto-inflates)
   const [W,S,E,N]=rm.bbox;
   const stepLon=(E-W)/(rm.cols-1), stepLat=(N-S)/(rm.rows-1);
@@ -177,7 +186,7 @@ async function loadRegion(i){
            obbox:[W-stepLon/2, S-stepLat/2, E+stepLon/2, N+stepLat/2] };
   gridForHour(); draw();
   const age=Math.round((Date.now()-new Date(RUN).getTime())/3.6e6);
-  setStatus(`HRDPS 2.5 km · ${rm.name} · ${rm.cols}×${rm.rows} · run ${PTL.format(new Date(RUN))} (${age} h ago)`);
+  setStatus(`HRDPS ${resLabel()} · ${rm.name} · ${rm.cols}×${rm.rows} · run ${PTL.format(new Date(RUN))} (${age} h ago)`);
 }
 function gridForHour(){
   if(!region) return;
@@ -368,6 +377,13 @@ canvas.addEventListener("mouseleave",()=>tip.style.display="none");
 /* ================================ wiring ================================ */
 REGIONS.forEach(([name],i)=>{ const o=document.createElement("option"); o.value=String(i); o.textContent=name; $("region").appendChild(o); });
 $("region").onchange=()=>jumpRegion(+$("region").value);
+$("res").onchange=()=>{
+  resKey=$("res").value; manifest=null; region=null;
+  loadManifest().then(()=>jumpRegion(regionIdx)).catch(e=>{
+    setStatus("That resolution isn't available yet ("+e.message+") — staying on 2.5 km", true);
+    resKey="hrdps"; $("res").value="hrdps"; manifest=null; loadManifest().then(()=>jumpRegion(regionIdx));
+  });
+};
 $("zoomIn").onclick=()=>zoomAt(0.7); $("zoomOut").onclick=()=>zoomAt(1.43);
 $("resetView").onclick=()=>jumpRegion(regionIdx);
 $("time").oninput=()=>setHour(+$("time").value);
@@ -376,6 +392,7 @@ $("opacity").oninput=draw; $("ovToggle").onchange=draw; $("arToggle").onchange=d
 window.addEventListener("resize",()=>{ draw(); scheduleRefetch(); });
 
 $("srcNote").innerHTML="Wind = HRDPS Continental (Environment Canada) at native ~2.5 km, decoded from raw GRIB2 by the hrdps-ingest pipeline and served per region from Cloudflare R2; speed m/s→km/h, Beaufort-coloured. "
+  +"Resolution toggle: 2.5 km (continental, full-coast) or 1 km (experimental West nest — covers inshore E/S Haida Gwaii incl. Cape St. James + Hecate Strait, but clips the far-offshore open Pacific, shown blank). "
   +"Falls back to GeoMet WCS ~3.7 km if a region file is unavailable. Coastline = Natural Earth 10 m reference outline. Not for navigation.";
 
 buildLegend();

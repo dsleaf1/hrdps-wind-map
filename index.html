@@ -36,7 +36,7 @@
   #ticks .tick{position:absolute;transform:translateX(-50%);font-size:10px;color:var(--muted);white-space:nowrap}
   #ticks .tick i{display:block;width:1px;height:5px;background:#aab4c2;margin:0 auto 1px}
   .mapwrap{position:relative;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#0f2231;touch-action:none}
-  canvas{display:block;width:100%;cursor:grab}
+  canvas{display:block;width:100%;cursor:grab;touch-action:none}
   canvas.drag{cursor:grabbing}
   #tip{position:absolute;display:none;pointer-events:none;background:rgba(16,33,46,.94);color:#fff;
        font-size:12px;padding:6px 8px;border-radius:6px;line-height:1.3;white-space:nowrap;z-index:5}
@@ -53,7 +53,7 @@
 <body>
 <header>
   <h1>HRDPS Wind Map — BC Coast</h1>
-  <p>HRDPS 10 m wind (ECCC, via the hrdps-ingest pipeline → R2), Beaufort-coloured over a plain coastline — switch between <b>2.5 km</b> (full coast) and <b>1 km</b> (inshore). Scroll to zoom, drag to pan; play or scrub the 48 h timeline. <span style="opacity:.7">build 2026-06-29a</span></p>
+  <p>HRDPS 10 m wind (ECCC, via the hrdps-ingest pipeline → R2), Beaufort-coloured over a plain coastline — switch between <b>2.5 km</b> (full coast) and <b>1 km</b> (inshore). Scroll/pinch to zoom, drag to pan; play or scrub the 48 h timeline. <span style="opacity:.7">build 2026-06-29b</span></p>
 </header>
 
 <main>
@@ -383,6 +383,24 @@ canvas.addEventListener("mousemove",ev=>{
   tip.innerHTML=`${card(dr)} ${Math.round(dr)}° · ${Math.round(s)} km/h (${kt(s)} kt)<br>Beaufort ${f} — ${NAMES[f]}`;
 });
 canvas.addEventListener("mouseleave",()=>tip.style.display="none");
+
+// ---- touch: one-finger pan, two-finger pinch-zoom ----
+let touch=null;
+function tinfo(ts){ const r=canvas.getBoundingClientRect();
+  if(ts.length>=2){ const ax=ts[0].clientX-r.left,ay=ts[0].clientY-r.top,bx=ts[1].clientX-r.left,by=ts[1].clientY-r.top;
+    return {cx:(ax+bx)/2, cy:(ay+by)/2, d:Math.hypot(bx-ax,by-ay)}; }
+  return {cx:ts[0].clientX-r.left, cy:ts[0].clientY-r.top, d:0};
+}
+canvas.addEventListener("touchstart",ev=>{ ev.preventDefault(); tip.style.display="none"; touch=tinfo(ev.touches); },{passive:false});
+canvas.addEventListener("touchmove",ev=>{ ev.preventDefault(); if(!touch||!ev.touches.length) return;
+  const t=tinfo(ev.touches), {w,h}=cssSize(), [lonW,latS,lonE,latN]=viewBBox();
+  view.clon-=(t.cx-touch.cx)/w*(lonE-lonW); view.clat+=(t.cy-touch.cy)/h*(latN-latS);   // pan by (mid)point
+  if(ev.touches.length>=2 && touch.d>0 && t.d>0) zoomAt(touch.d/t.d, t.cx, t.cy);          // pinch zoom
+  else draw();
+  touch=t;
+},{passive:false});
+canvas.addEventListener("touchend",ev=>{ ev.preventDefault();
+  if(ev.touches.length===0){ touch=null; scheduleRefetch(); } else touch=tinfo(ev.touches); },{passive:false});
 
 /* ================================ wiring ================================ */
 REGIONS.forEach(([name],i)=>{ const o=document.createElement("option"); o.value=String(i); o.textContent=name; $("region").appendChild(o); });

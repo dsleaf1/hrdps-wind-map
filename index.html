@@ -53,7 +53,7 @@
 <body>
 <header>
   <h1>HRDPS Wind Map — BC Coast</h1>
-  <p>HRDPS 10 m wind (ECCC, via the hrdps-ingest pipeline → R2), Beaufort-coloured over a plain coastline — switch between <b>2.5 km</b> (full coast) and <b>1 km</b> (inshore). Scroll to zoom, drag to pan; play or scrub the 48 h timeline. <span style="opacity:.7">build 2026-06-28g</span></p>
+  <p>HRDPS 10 m wind (ECCC, via the hrdps-ingest pipeline → R2), Beaufort-coloured over a plain coastline — switch between <b>2.5 km</b> (full coast) and <b>1 km</b> (inshore). Scroll to zoom, drag to pan; play or scrub the 48 h timeline. <span style="opacity:.7">build 2026-06-29a</span></p>
 </header>
 
 <main>
@@ -144,7 +144,7 @@ const WCS="https://geo.weather.gc.ca/geomet";
 const MIN_SPAN=0.12, MAX_SPAN=3.6;
 let view={clat:52.5, clon:-131.7, latSpan:2.3};
 let RUN=null, TIMES=[], hour=0, regionIdx=0;
-let grid=null, anim=null;
+let grid=null, anim=null, coastBB=[];
 // R2 2.5 km path:
 let manifest=null, region=null;         // region = {key,name,cols,rows,bytes,stepLon,stepLat,obbox}
 // GeoMet fallback path:
@@ -266,7 +266,10 @@ function draw(){
   }
 
   ctx.lineJoin="round"; ctx.lineCap="round";
-  for(const seg of coast.segments){
+  for(let si=0; si<coast.segments.length; si++){
+    const bb=coastBB[si];                                    // viewport cull (off-screen segs skipped)
+    if(bb && (bb[2]<lonW||bb[0]>lonE||bb[3]<latS||bb[1]>latN)) continue;
+    const seg=coast.segments[si];
     ctx.beginPath();
     for(let k=0;k<seg.length;k++){ const px=X(seg[k][0]),py=Y(seg[k][1]); k?ctx.lineTo(px,py):ctx.moveTo(px,py); }
     ctx.strokeStyle="rgba(255,255,255,.7)"; ctx.lineWidth=3.0; ctx.stroke();
@@ -325,6 +328,13 @@ function buildLegend(){
   $("legend").innerHTML=h;
 }
 function setStatus(m,err){ const e=$("status"); e.textContent=m; e.className="status"+(err?" err":""); }
+function indexCoast(){   // per-segment bbox [minLon,minLat,maxLon,maxLat] for viewport culling
+  coastBB=coast.segments.map(seg=>{
+    let m1=1e9,m2=1e9,M1=-1e9,M2=-1e9;
+    for(const p of seg){ if(p[0]<m1)m1=p[0]; if(p[0]>M1)M1=p[0]; if(p[1]<m2)m2=p[1]; if(p[1]>M2)M2=p[1]; }
+    return [m1,m2,M1,M2];
+  });
+}
 
 function jumpRegion(i){
   regionIdx=i; const bb=REGIONS[i][1];
@@ -393,9 +403,12 @@ window.addEventListener("resize",()=>{ draw(); scheduleRefetch(); });
 
 $("srcNote").innerHTML="Wind = HRDPS Continental (Environment Canada) at native ~2.5 km, decoded from raw GRIB2 by the hrdps-ingest pipeline and served per region from Cloudflare R2; speed m/s→km/h, Beaufort-coloured. "
   +"Resolution toggle: 2.5 km (continental, full-coast) or 1 km (experimental West nest — covers inshore E/S Haida Gwaii incl. Cape St. James + Hecate Strait, but clips the far-offshore open Pacific, shown blank). "
-  +"Falls back to GeoMet WCS ~3.7 km if a region file is unavailable. Coastline = Natural Earth 10 m reference outline. Not for navigation.";
+  +"Falls back to GeoMet WCS ~3.7 km if a region file is unavailable. Coastline = OpenStreetMap (high-res, simplified ~100 m; Natural Earth 10 m fallback on file://). Not for navigation.";
 
 buildLegend();
+indexCoast();   // index the inlined NE-10m fallback first
+// upgrade to high-res OSM coastline if the served file is reachable (http; double-click file:// keeps NE)
+fetch("coastline_hires.json").then(r=>r.json()).then(j=>{ if(j&&j.segments&&j.segments.length){ coast=j; indexCoast(); draw(); } }).catch(()=>{});
 loadManifest()
   .then(()=>jumpRegion(0))
   .catch(e=>{

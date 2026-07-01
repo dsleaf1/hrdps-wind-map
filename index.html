@@ -59,7 +59,7 @@
 <body>
 <header>
   <h1>HRDPS Wind Map — BC Coast</h1>
-  <p>HRDPS 10 m wind (ECCC, via the hrdps-ingest pipeline → R2), Beaufort-coloured over a plain coastline — switch between <b>2.5 km</b> (full coast) and <b>1 km</b> (inshore). Big +/− buttons (or scroll/pinch) to zoom, drag to pan; play or scrub the 48 h timeline. In the <b>San Juan &amp; Gulf Islands</b> region, live NOAA tidal-current arrows (cyan) ride the same timeline. <span style="opacity:.7">build 2026-06-30a</span></p>
+  <p>HRDPS 10 m wind (ECCC, via the hrdps-ingest pipeline → R2), Beaufort-coloured over a plain coastline — switch between <b>2.5 km</b> (full coast) and <b>1 km</b> (inshore). Big +/− buttons (or scroll/pinch) to zoom, drag to pan; play or scrub the 48 h timeline. In the <b>San Juan &amp; Gulf Islands</b> region, live NOAA tidal-current arrows (cyan) ride the same timeline, and a coloured ring on each station warns when the current opposes the sea steeply enough to break — the wind-against-current hazard that matters most to kayaks. <span style="opacity:.7">build 2026-07-01a</span></p>
 </header>
 
 <main>
@@ -118,6 +118,14 @@
   </div>
 
   <div class="legend" id="legend"></div>
+  <div id="hazlegend" style="display:none; align-items:center; flex-wrap:wrap; gap:12px; margin:6px 2px 0; font-size:12px; color:#555;">
+    <b style="font-weight:600; color:#333;">Wave × current steepness (ring)</b>
+    <span style="display:flex;align-items:center;gap:5px"><span style="width:12px;height:12px;border-radius:50%;border:3px solid #0ca30c"></span>low</span>
+    <span style="display:flex;align-items:center;gap:5px"><span style="width:12px;height:12px;border-radius:50%;border:3px solid #eda100"></span>moderate</span>
+    <span style="display:flex;align-items:center;gap:5px"><span style="width:12px;height:12px;border-radius:50%;border:3px solid #eb6834"></span>steep</span>
+    <span style="display:flex;align-items:center;gap:5px"><span style="width:12px;height:12px;border-radius:50%;border:3px solid #d03b3b"></span>very steep</span>
+    <span style="display:flex;align-items:center;gap:5px"><span style="width:12px;height:12px;border-radius:50%;border:3px solid #7a1616"></span>breaking / tide race</span>
+  </div>
   <p class="note" id="srcNote"></p>
 </main>
 
@@ -173,6 +181,13 @@ async function loadNoaaCurrents(){
         ev:cp.map(e=>[Date.parse(e.Time.replace(" ","T")+":00Z"), e.Type==="slack"?0:parseFloat(e.Velocity_Major)]) });
     }catch(e){}
   }));
+  // attach Open-Meteo Marine waves (one multi-point call) for wind-against-current steepness
+  if(out.length){ try{
+    const lats=out.map(s=>s.lat).join(","), lons=out.map(s=>s.lon).join(",");
+    let md=await (await fetch(`https://marine-api.open-meteo.com/v1/marine?latitude=${lats}&longitude=${lons}&hourly=wave_height,wave_period,wave_direction&forecast_days=4&timezone=GMT`)).json();
+    if(!Array.isArray(md)) md=[md];
+    out.forEach((s,i)=>{ const h=(md[i]||{}).hourly; if(h&&h.time) s.waves=h.time.map((ts,j)=>[Date.parse(ts+":00Z"),h.wave_height[j],h.wave_period[j],h.wave_direction[j]]); });
+  }catch(e){} }
   if(tok!==noaaTok) return;
   currentStations=out; draw();
 }
@@ -186,6 +201,32 @@ function curSpeed(ev,t){   // signed knots at UTC ms t (sinusoidal between slack
   if(Math.abs(v0)>=0.01 && Math.abs(v1)<0.01) return v0*Math.cos(Math.PI/2*f);
   if(Math.abs(v0)<0.01 && Math.abs(v1)<0.01) return 0;
   return v0+(v1-v0)*f;
+}
+// ---- wave-against-current steepness hazard ----
+const HAZ=["#0ca30c","#eda100","#eb6834","#d03b3b","#7a1616"];  // low, moderate, steep, very steep, breaking
+function waveAt(waves,t){ if(!waves||!waves.length) return null;
+  let best=waves[0], bd=Math.abs(waves[0][0]-t);
+  for(const w of waves){ const d=Math.abs(w[0]-t); if(d<bd){bd=d;best=w;} }
+  if(bd>2*3600e3) return null;
+  return {Hs:best[1], Tp:best[2], dir:best[3]};
+}
+function hazBand(Hs,Tp,dirFrom,curKt,curToward){   // -1 = negligible sea; 0..4 = steepness band
+  if(!(Hs>0.05)||!(Tp>0)) return -1;
+  const G=9.81, KT=0.514444;
+  const c0=G*Tp/(2*Math.PI), L0=c0*Tp, S0=Hs/L0;
+  const Uopp=Math.abs(curKt)*KT*Math.cos((curToward-dirFrom)*Math.PI/180);  // >0 = opposing
+  const alpha=-Uopp/c0, disc=1+4*alpha;
+  let band, hf;   // hf = height-amplification factor, capped (breaking dissipates the runaway near blocking)
+  if(alpha<0 && disc<=0){ band=4; hf=2.5; }          // beyond blocking → breaking
+  else { const x=Math.abs(alpha)<1e-9?1:(-1+Math.sqrt(disc))/(2*alpha);
+    hf=Math.min(Math.pow(x,1.5)/Math.sqrt(Math.max(2-x,1e-6)),2.5);
+    const S=Math.pow(x,3.5)/Math.sqrt(Math.max(2-x,1e-6))*S0;
+    band = (!isFinite(S)||S>=0.143)?4 : S>=0.10?3 : S>=0.075?2 : S>=0.05?1 : 0;
+  }
+  const Hamp=Hs*hf;   // consequence gate: a small sea can't be high-consequence even when steep/blocked
+  if(Hamp<0.3) band=Math.min(band,1);
+  else if(Hamp<0.5) band=Math.min(band,2);
+  return band;
 }
 function label(ctx,txt,x,y,color){ ctx.font="bold 12px -apple-system,sans-serif"; ctx.textBaseline="middle";
   ctx.lineWidth=3; ctx.strokeStyle="rgba(255,255,255,.92)"; ctx.strokeText(txt,x,y); ctx.fillStyle=color; ctx.fillText(txt,x,y); }
@@ -351,6 +392,9 @@ function draw(){
   if(tNow!=null) for(const s of currentStations){
     const px=X(s.lon), py=Y(s.lat); if(px<-30||px>w+30||py<-30||py>h+30) continue;
     const v=curSpeed(s.ev,tNow);
+    if(v!=null && s.waves){ const wv=waveAt(s.waves,tNow);
+      if(wv){ const hb=hazBand(wv.Hs,wv.Tp,wv.dir,v, v>=0?s.floodDir:(s.ebbDir??s.floodDir+180));
+        if(hb>=0){ ctx.beginPath(); ctx.arc(px,py,12,0,7); ctx.strokeStyle=HAZ[hb]; ctx.lineWidth=hb===0?2.5:5.5; ctx.globalAlpha=hb===0?0.35:0.92; ctx.stroke(); ctx.globalAlpha=1; } } }
     ctx.beginPath(); ctx.arc(px,py,5,0,7); ctx.fillStyle="#00b4d8"; ctx.fill(); ctx.strokeStyle="#003049"; ctx.lineWidth=2; ctx.stroke();
     if(v!=null && Math.abs(v)>=0.05){
       const flood=v>=0, dir=(flood?s.floodDir:(s.ebbDir??s.floodDir+180))*Math.PI/180;
@@ -413,6 +457,7 @@ function jumpRegion(i){
   landmarks = rk==="broughtons-discovery" ? BROUGHTONS_LM : [];
   if(rk==="san-juan-gulf-islands"){ currentStations=[]; loadNoaaCurrents(); }
   else currentStations = rk==="broughtons-discovery" ? BROUGHTONS_CUR : [];
+  $("hazlegend").style.display = rk==="san-juan-gulf-islands" ? "flex" : "none";
   if(manifest){
     region=null; draw();
     loadRegion(i).catch(e=>{ setStatus("2.5 km region unavailable — GeoMet 3.7 km: "+e.message, true);

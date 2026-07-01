@@ -59,7 +59,7 @@
 <body>
 <header>
   <h1>HRDPS Wind Map — BC Coast</h1>
-  <p>HRDPS 10 m wind (ECCC, via the hrdps-ingest pipeline → R2), Beaufort-coloured over a plain coastline — switch between <b>2.5 km</b> (full coast) and <b>1 km</b> (inshore). Big +/− buttons (or scroll/pinch) to zoom, drag to pan; play or scrub the 48 h timeline. In the <b>San Juan &amp; Gulf Islands</b> region, live NOAA tidal-current arrows (cyan) ride the same timeline, and a coloured ring on each station warns when the current opposes the sea steeply enough to break — the wind-against-current hazard that matters most to kayaks. <span style="opacity:.7">build 2026-07-01d</span></p>
+  <p>HRDPS 10 m wind (ECCC, via the hrdps-ingest pipeline → R2), Beaufort-coloured over a plain coastline — switch between <b>2.5 km</b> (full coast) and <b>1 km</b> (inshore). Big +/− buttons (or scroll/pinch) to zoom, drag to pan; play or scrub the 48 h timeline. In the <b>San Juan &amp; Gulf Islands</b> region, live NOAA tidal-current arrows (cyan) ride the same timeline, and a coloured ring on each station warns when the current opposes the sea steeply enough to break — the wind-against-current hazard that matters most to kayaks. Hover (or tap) a station for its speed, set and hazard. <span style="opacity:.7">build 2026-07-01e</span></p>
   <p style="margin:2px 0 0; font-size:.85em"><a href="wave_current_steepness.pdf" target="_blank" rel="noopener" style="color:#dce7ff; text-decoration:underline">How the hazard is computed — physics &amp; data reference (PDF)</a></p>
 </header>
 
@@ -179,7 +179,7 @@ let view={clat:52.5, clon:-131.7, latSpan:2.3};
 let RUN=null, TIMES=[], hour=0, regionIdx=0;
 let grid=null, anim=null, coastBB=[];
 // ---- current overlay (region-driven): Broughtons (CHS demo) + San Juan (live NOAA) ----
-let currentStations=[], landmarks=[];
+let currentStations=[], landmarks=[], curHit=[];
 const SJ_STATIONS=[{"id": "PUG1702", "name": "Rosario Strait", "lat": 48.4581, "lon": -122.7501}, {"id": "PUG1703", "name": "San Juan Channel, south entrance", "lat": 48.461, "lon": -122.952}, {"id": "PCT1416", "name": "Cattle Point, 2.8 miles SSW of", "lat": 48.4, "lon": -123}, {"id": "PUG1629", "name": "Yokeko Point, Deception Pass", "lat": 48.4127, "lon": -122.6132}, {"id": "PUG1734", "name": "Guemes Channel, West Entrance", "lat": 48.5212, "lon": -122.6522}, {"id": "PUG1733", "name": "Thatcher Pass", "lat": 48.5274, "lon": -122.804}, {"id": "PUG1705", "name": "Obstruction Pass, north of Obstruction Island", "lat": 48.6033, "lon": -122.8127}, {"id": "PUG1704", "name": "Peavine Pass, west entrance", "lat": 48.5871, "lon": -122.8193}, {"id": "PUG1719", "name": "Spieden Channel, north of Limestone Point", "lat": 48.6278, "lon": -123.1116}, {"id": "PUG1715", "name": "President Channel, East of Point Disney", "lat": 48.6734, "lon": -123.006}, {"id": "PUG1739", "name": "Bellingham Channel South", "lat": 48.5396, "lon": -122.6834}, {"id": "PUG1721", "name": "Wasp Passage narrows", "lat": 48.5925, "lon": -122.9896}, {"id": "PUG1723", "name": "Upright Channel narrows", "lat": 48.5538, "lon": -122.9226}, {"id": "PUG1722", "name": "Harney Channel, north of Point Hudson", "lat": 48.5897, "lon": -122.9217}, {"id": "PUG1706", "name": "Peapod Rocks Light, 1.2 nm south of", "lat": 48.6224, "lon": -122.7476}, {"id": "PUG1732", "name": "Strawberry Island", "lat": 48.5610, "lon": -122.7543}, {"id": "PUG1729", "name": "Belle Rock Light", "lat": 48.4968, "lon": -122.7308}, {"id": "PUG1709", "name": "Clark Island", "lat": 48.7313, "lon": -122.7734}, {"id": "PUG1711", "name": "Matia Island", "lat": 48.7749, "lon": -122.8410}, {"id": "PUG1713", "name": "Patos Island", "lat": 48.7721, "lon": -122.9337}, {"id": "PUG1714", "name": "Patos Island Light", "lat": 48.7731, "lon": -123.0058}, {"id": "PUG1712", "name": "Parker Reef", "lat": 48.7326, "lon": -122.8864}, {"id": "PUG1716", "name": "Waldron Island", "lat": 48.7042, "lon": -123.1048}, {"id": "PUG1717", "name": "Turn Point", "lat": 48.6912, "lon": -123.2450}, {"id": "PUG1718", "name": "Haro Strait", "lat": 48.5887, "lon": -123.2258}, {"id": "PUG1724", "name": "South Haro Strait", "lat": 48.4980, "lon": -123.1599}, {"id": "PUG1741", "name": "Bellingham Channel N", "lat": 48.5928, "lon": -122.6577}, {"id": "PUG1740", "name": "Cypress Head", "lat": 48.5585, "lon": -122.6618}];
 let noaaTok=0;
 async function loadNoaaCurrents(){
@@ -219,6 +219,14 @@ function curSpeed(ev,t){   // signed knots at UTC ms t (sinusoidal between slack
 }
 // ---- wave-against-current steepness hazard ----
 const HAZ=["#0ca30c","#eda100","#eb6834","#d03b3b","#7a1616"];  // low, moderate, steep, very steep, breaking
+const HAZ_TXT=["#3ddc84","#f5c518","#ff9e57","#ff6b6b","#ff5252"], HAZ_WORD=["low","moderate","steep","very steep","breaking"];
+function curPopupHTML(c){ const s=c.s, v=c.v;
+  const cur = v==null ? "no prediction now" : Math.abs(v)<0.05 ? "slack"
+    : `${Math.abs(v).toFixed(1)} kt ${v>=0?"flood":"ebb"} · set ${Math.round(v>=0?s.floodDir:(s.ebbDir??s.floodDir+180))}°`;
+  const wave = c.wv ? `${c.wv.Hs.toFixed(1)} m · ${c.wv.Tp.toFixed(0)} s period` : "—";
+  const haz = c.hb>=0 ? `<span style="color:${HAZ_TXT[c.hb]}">${HAZ_WORD[c.hb]}</span>` : "—";
+  return `<b>${s.name}</b><br>current: ${cur}<br>waves: ${wave}<br>wind×current: ${haz}`;
+}
 function waveAt(waves,t){ if(!waves||!waves.length) return null;
   let best=waves[0], bd=Math.abs(waves[0][0]-t);
   for(const w of waves){ const d=Math.abs(w[0]-t); if(d<bd){bd=d;best=w;} }
@@ -404,12 +412,14 @@ function draw(){
     label(ctx,s.name,px+9,py,"#1b5e20");
   }
   const tNow = TIMES.length ? Date.parse(TIMES[hour]) : null;
+  curHit=[];
   if(tNow!=null) for(const s of currentStations){
     const px=X(s.lon), py=Y(s.lat); if(px<-30||px>w+30||py<-30||py>h+30) continue;
     const v=curSpeed(s.ev,tNow);
-    if(v!=null && s.waves){ const wv=waveAt(s.waves,tNow);
-      if(wv){ const hb=hazBand(wv.Hs,wv.Tp,wv.dir,v, v>=0?s.floodDir:(s.ebbDir??s.floodDir+180));
-        if(hb>=0){ ctx.beginPath(); ctx.arc(px,py,12,0,7); ctx.strokeStyle=HAZ[hb]; ctx.lineWidth=hb===0?2.5:5.5; ctx.globalAlpha=hb===0?0.35:0.92; ctx.stroke(); ctx.globalAlpha=1; } } }
+    const wv = s.waves ? waveAt(s.waves,tNow) : null;
+    let hb=-1;
+    if(v!=null && wv){ hb=hazBand(wv.Hs,wv.Tp,wv.dir,v, v>=0?s.floodDir:(s.ebbDir??s.floodDir+180));
+      if(hb>=0){ ctx.beginPath(); ctx.arc(px,py,12,0,7); ctx.strokeStyle=HAZ[hb]; ctx.lineWidth=hb===0?2.5:5.5; ctx.globalAlpha=hb===0?0.35:0.92; ctx.stroke(); ctx.globalAlpha=1; } }
     ctx.beginPath(); ctx.arc(px,py,5,0,7); ctx.fillStyle="#00b4d8"; ctx.fill(); ctx.strokeStyle="#003049"; ctx.lineWidth=2; ctx.stroke();
     if(v!=null && Math.abs(v)>=0.05){
       const flood=v>=0, dir=(flood?s.floodDir:(s.ebbDir??s.floodDir+180))*Math.PI/180;
@@ -417,11 +427,8 @@ function draw(){
       ctx.strokeStyle="#00b4d8"; ctx.lineWidth=3.5; ctx.beginPath(); ctx.moveTo(px,py); ctx.lineTo(x2,y2); ctx.stroke();
       const a1=dir+2.6,a2=dir-2.6,hs=10; ctx.fillStyle="#00b4d8";
       ctx.beginPath(); ctx.moveTo(x2,y2); ctx.lineTo(x2+Math.sin(a1)*hs,y2-Math.cos(a1)*hs); ctx.lineTo(x2+Math.sin(a2)*hs,y2-Math.cos(a2)*hs); ctx.closePath(); ctx.fill();
-      const full=view.latSpan<=0.32;
-      label(ctx, full ? `${s.name}  ${Math.abs(v).toFixed(1)} kt ${flood?'flood':'ebb'}` : `${Math.abs(v).toFixed(1)}`, px+9, py, "#005f73");
-    } else if(view.latSpan<=0.32){
-      label(ctx, `${s.name}  slack`, px+9, py, "#005f73");
     }
+    curHit.push({px,py,s,v,wv,hb});
   }
 }
 
@@ -507,6 +514,10 @@ window.addEventListener("mousemove",ev=>{
 canvas.addEventListener("mousemove",ev=>{
   if(drag||!grid) return;
   const rect=canvas.getBoundingClientRect(), mx=ev.clientX-rect.left, my=ev.clientY-rect.top;
+  { let hit=null, bd=225; for(const c of curHit){ const dx=mx-c.px, dy=my-c.py, d=dx*dx+dy*dy; if(d<bd){bd=d;hit=c;} }
+    if(hit){ canvas.style.cursor="pointer"; tip.style.display="block";
+      tip.style.left=Math.min(mx+14,rect.width-210)+"px"; tip.style.top=(my+14)+"px"; tip.innerHTML=curPopupHTML(hit); return; }
+    canvas.style.cursor=""; }
   const [lonW,latS,lonE,latN]=viewBBox();
   const lo=lonW+(mx/rect.width)*(lonE-lonW), la=latN-(my/rect.height)*(latN-latS);
   const c=clamp(Math.floor((lo-grid.bbox[0])/grid.stepLon),0,grid.w-1);
@@ -519,22 +530,31 @@ canvas.addEventListener("mousemove",ev=>{
 canvas.addEventListener("mouseleave",()=>tip.style.display="none");
 
 // ---- touch: one-finger pan, two-finger pinch-zoom ----
-let touch=null;
+let touch=null, tapStart=null;
 function tinfo(ts){ const r=canvas.getBoundingClientRect();
   if(ts.length>=2){ const ax=ts[0].clientX-r.left,ay=ts[0].clientY-r.top,bx=ts[1].clientX-r.left,by=ts[1].clientY-r.top;
     return {cx:(ax+bx)/2, cy:(ay+by)/2, d:Math.hypot(bx-ax,by-ay)}; }
   return {cx:ts[0].clientX-r.left, cy:ts[0].clientY-r.top, d:0};
 }
-canvas.addEventListener("touchstart",ev=>{ ev.preventDefault(); tip.style.display="none"; touch=tinfo(ev.touches); },{passive:false});
+canvas.addEventListener("touchstart",ev=>{ ev.preventDefault(); tip.style.display="none"; touch=tinfo(ev.touches);
+  tapStart = ev.touches.length===1 ? {x:touch.cx, y:touch.cy, t:Date.now(), moved:false} : null; },{passive:false});
 canvas.addEventListener("touchmove",ev=>{ ev.preventDefault(); if(!touch||!ev.touches.length) return;
   const t=tinfo(ev.touches), {w,h}=cssSize(), [lonW,latS,lonE,latN]=viewBBox();
   view.clon-=(t.cx-touch.cx)/w*(lonE-lonW); view.clat+=(t.cy-touch.cy)/h*(latN-latS);   // pan by (mid)point
   if(ev.touches.length>=2 && touch.d>0 && t.d>0) zoomAt(touch.d/t.d, t.cx, t.cy);          // pinch zoom
   else draw();
+  if(tapStart){ const ddx=t.cx-tapStart.x, ddy=t.cy-tapStart.y; if(ddx*ddx+ddy*ddy>49) tapStart.moved=true; }
   touch=t;
 },{passive:false});
 canvas.addEventListener("touchend",ev=>{ ev.preventDefault();
-  if(ev.touches.length===0){ touch=null; scheduleRefetch(); } else touch=tinfo(ev.touches); },{passive:false});
+  if(ev.touches.length===0){
+    if(tapStart && !tapStart.moved && Date.now()-tapStart.t<350){
+      let hit=null,bd=484; for(const c of curHit){ const dx=tapStart.x-c.px, dy=tapStart.y-c.py, d=dx*dx+dy*dy; if(d<bd){bd=d;hit=c;} }
+      if(hit){ const rect=canvas.getBoundingClientRect(); tip.style.display="block";
+        tip.style.left=Math.min(tapStart.x+14,rect.width-210)+"px"; tip.style.top=(tapStart.y+14)+"px"; tip.innerHTML=curPopupHTML(hit); }
+    }
+    tapStart=null; touch=null; scheduleRefetch();
+  } else touch=tinfo(ev.touches); },{passive:false});
 
 /* ================================ wiring ================================ */
 REGIONS.forEach(([name],i)=>{ const o=document.createElement("option"); o.value=String(i); o.textContent=name; $("region").appendChild(o); });

@@ -59,7 +59,7 @@
 <body>
 <header>
   <h1>HRDPS Wind Map — BC Coast</h1>
-  <p>HRDPS 10 m wind (ECCC, via the hrdps-ingest pipeline → R2), Beaufort-coloured over a plain coastline — switch between <b>2.5 km</b> (full coast) and <b>1 km</b> (inshore). Big +/− buttons (or scroll/pinch) to zoom, drag to pan; play or scrub the 48 h timeline. <span style="opacity:.7">build 2026-06-29c</span></p>
+  <p>HRDPS 10 m wind (ECCC, via the hrdps-ingest pipeline → R2), Beaufort-coloured over a plain coastline — switch between <b>2.5 km</b> (full coast) and <b>1 km</b> (inshore). Big +/− buttons (or scroll/pinch) to zoom, drag to pan; play or scrub the 48 h timeline. In the <b>San Juan &amp; Gulf Islands</b> region, live NOAA tidal-current arrows (cyan) ride the same timeline. <span style="opacity:.7">build 2026-06-30a</span></p>
 </header>
 
 <main>
@@ -155,6 +155,40 @@ const MIN_SPAN=0.12, MAX_SPAN=3.6;
 let view={clat:52.5, clon:-131.7, latSpan:2.3};
 let RUN=null, TIMES=[], hour=0, regionIdx=0;
 let grid=null, anim=null, coastBB=[];
+// ---- current overlay (region-driven): Broughtons (CHS demo) + San Juan (live NOAA) ----
+let currentStations=[], landmarks=[];
+const SJ_STATIONS=[{"id": "PUG1702", "name": "Rosario Strait", "lat": 48.4581, "lon": -122.7501}, {"id": "PUG1703", "name": "San Juan Channel, south entrance", "lat": 48.461, "lon": -122.952}, {"id": "PCT1416", "name": "Cattle Point, 2.8 miles SSW of", "lat": 48.4, "lon": -123}, {"id": "PUG1629", "name": "Yokeko Point, Deception Pass", "lat": 48.4127, "lon": -122.6132}, {"id": "PUG1734", "name": "Guemes Channel, West Entrance", "lat": 48.5212, "lon": -122.6522}, {"id": "PUG1733", "name": "Thatcher Pass", "lat": 48.5274, "lon": -122.804}, {"id": "PUG1705", "name": "Obstruction Pass, north of Obstruction Island", "lat": 48.6033, "lon": -122.8127}, {"id": "PUG1704", "name": "Peavine Pass, west entrance", "lat": 48.5871, "lon": -122.8193}, {"id": "PUG1719", "name": "Spieden Channel, north of Limestone Point", "lat": 48.6278, "lon": -123.1116}, {"id": "PUG1715", "name": "President Channel, East of Point Disney", "lat": 48.6734, "lon": -123.006}, {"id": "PUG1739", "name": "Bellingham Channel South", "lat": 48.5396, "lon": -122.6834}, {"id": "PUG1721", "name": "Wasp Passage narrows", "lat": 48.5925, "lon": -122.9896}, {"id": "PUG1723", "name": "Upright Channel narrows", "lat": 48.5538, "lon": -122.9226}, {"id": "PUG1722", "name": "Harney Channel, north of Point Hudson", "lat": 48.5897, "lon": -122.9217}];
+let noaaTok=0;
+async function loadNoaaCurrents(){
+  const tok=++noaaTok, out=[];
+  const bd=new Date(Date.now()-24*3600e3);
+  const begin=`${bd.getUTCFullYear()}${String(bd.getUTCMonth()+1).padStart(2,"0")}${String(bd.getUTCDate()).padStart(2,"0")}`;
+  await Promise.all(SJ_STATIONS.map(async st=>{
+    try{
+      const u=`https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?product=currents_predictions&station=${st.id}&begin_date=${begin}&range=96&interval=MAX_SLACK&units=english&time_zone=gmt&format=json`;
+      const cp=((await (await fetch(u)).json()).current_predictions||{}).cp||[];
+      if(!cp.length) return;
+      out.push({ name:st.name.split(",")[0], lat:st.lat, lon:st.lon,
+        floodDir:+cp[0].meanFloodDir, ebbDir:+cp[0].meanEbbDir,
+        ev:cp.map(e=>[Date.parse(e.Time.replace(" ","T")+":00Z"), e.Type==="slack"?0:parseFloat(e.Velocity_Major)]) });
+    }catch(e){}
+  }));
+  if(tok!==noaaTok) return;
+  currentStations=out; draw();
+}
+const BROUGHTONS_CUR=[{"name":"Blackney Passage","lat":50.54655,"lon":-126.65744,"floodDir":180,"ev":[[1782547560000,0.6],[1782552900000,0.0],[1782566340000,-2.3],[1782580080000,0.0],[1782590700000,3.0],[1782604140000,0.0],[1782617160000,-1.8],[1782631500000,0.0],[1782636780000,0.5],[1782641580000,0.0],[1782655500000,-2.3],[1782668460000,0.0],[1782679500000,3.2],[1782692640000,0.0],[1782705420000,-1.9],[1782720420000,0.0],[1782725580000,0.5],[1782730140000,0.0],[1782744780000,-2.3],[1782756900000,0.0],[1782768120000,3.4],[1782781140000,0.0],[1782793620000,-1.9],[1782808680000,0.0],[1782814080000,0.5],[1782818640000,0.0],[1782833880000,-2.4],[1782845520000,0.0],[1782856740000,3.5],[1782869700000,0.0],[1782881820000,-2.0],[1782896640000,0.0],[1782902460000,0.6],[1782907200000,0.0],[1782922740000,-2.4],[1782934200000,0.0],[1782945300000,3.5],[1782958260000,0.0],[1782970260000,-2.2],[1782984660000,0.0],[1782990900000,0.6],[1782995940000,0.0],[1783011420000,-2.4],[1783022940000,0.0],[1783033920000,3.4],[1783046820000,0.0],[1783058760000,-2.3],[1783073100000,0.0],[1783079700000,0.7],[1783085040000,0.0],[1783100100000,-2.3],[1783111740000,0.0],[1783122600000,3.2],[1783135200000,0.0],[1783147500000,-2.5],[1783161900000,0.0],[1783168800000,0.8],[1783174680000,0.0],[1783188900000,-2.0],[1783200660000,0.0],[1783211400000,2.9],[1783223580000,0.0]]},{"name":"Weynton Passage","lat":50.59603,"lon":-126.78154,"floodDir":200,"ev":[[1782545040000,1.3],[1782552120000,0.0],[1782566460000,-4.2],[1782577560000,0.0],[1782589620000,4.0],[1782604860000,0.0],[1782614700000,-2.8],[1782626520000,0.0],[1782634020000,1.3],[1782640980000,0.0],[1782655140000,-4.4],[1782666060000,0.0],[1782678060000,4.2],[1782693240000,0.0],[1782703140000,-2.9],[1782715200000,0.0],[1782722880000,1.4],[1782729780000,0.0],[1782743760000,-4.5],[1782754560000,0.0],[1782766440000,4.4],[1782781500000,0.0],[1782791400000,-3.0],[1782803700000,0.0],[1782811620000,1.4],[1782818520000,0.0],[1782832380000,-4.6],[1782843000000,0.0],[1782854940000,4.5],[1782869700000,0.0],[1782879600000,-3.1],[1782892140000,0.0],[1782900240000,1.4],[1782907140000,0.0],[1782920940000,-4.6],[1782931500000,0.0],[1782943500000,4.5],[1782957960000,0.0],[1782967860000,-3.2],[1782980580000,0.0],[1782988800000,1.4],[1782995760000,0.0],[1783009620000,-4.5],[1783020000000,0.0],[1783032180000,4.6],[1783046220000,0.0],[1783056360000,-3.4],[1783069080000,0.0],[1783077300000,1.5],[1783084500000,0.0],[1783098300000,-4.2],[1783108620000,0.0],[1783120980000,4.5],[1783134540000,0.0],[1783144980000,-3.6],[1783157700000,0.0],[1783165980000,1.5],[1783173660000,0.0],[1783187220000,-3.8],[1783197360000,0.0],[1783209900000,4.3],[1783222920000,0.0],[1783233780000,-3.8]]}];
+const BROUGHTONS_LM=[{name:"SoW Camp", lat:50.60259, lon:-126.69081}];
+function curSpeed(ev,t){   // signed knots at UTC ms t (sinusoidal between slack/max); null outside range
+  if(!ev.length||t<=ev[0][0]||t>=ev[ev.length-1][0]) return null;
+  let i=0; while(i<ev.length-1 && ev[i+1][0]<t) i++;
+  const t0=ev[i][0],v0=ev[i][1],t1=ev[i+1][0],v1=ev[i+1][1], f=(t-t0)/(t1-t0);
+  if(Math.abs(v0)<0.01 && Math.abs(v1)>=0.01) return v1*Math.sin(Math.PI/2*f);
+  if(Math.abs(v0)>=0.01 && Math.abs(v1)<0.01) return v0*Math.cos(Math.PI/2*f);
+  if(Math.abs(v0)<0.01 && Math.abs(v1)<0.01) return 0;
+  return v0+(v1-v0)*f;
+}
+function label(ctx,txt,x,y,color){ ctx.font="bold 12px -apple-system,sans-serif"; ctx.textBaseline="middle";
+  ctx.lineWidth=3; ctx.strokeStyle="rgba(255,255,255,.92)"; ctx.strokeText(txt,x,y); ctx.fillStyle=color; ctx.fillText(txt,x,y); }
 // R2 2.5 km path:
 let manifest=null, region=null;         // region = {key,name,cols,rows,bytes,stepLon,stepLat,obbox}
 // GeoMet fallback path:
@@ -306,6 +340,30 @@ function draw(){
       }
     }
   }
+
+  // ---- tidal-current arrows (cyan) + landmark labels ----
+  for(const s of landmarks){
+    const px=X(s.lon), py=Y(s.lat); if(px<-30||px>w+30||py<-30||py>h+30) continue;
+    ctx.beginPath(); ctx.arc(px,py,5,0,7); ctx.fillStyle="#6aa84f"; ctx.fill(); ctx.strokeStyle="#fff"; ctx.lineWidth=2; ctx.stroke();
+    label(ctx,s.name,px+9,py,"#1b5e20");
+  }
+  const tNow = TIMES.length ? Date.parse(TIMES[hour]) : null;
+  if(tNow!=null) for(const s of currentStations){
+    const px=X(s.lon), py=Y(s.lat); if(px<-30||px>w+30||py<-30||py>h+30) continue;
+    const v=curSpeed(s.ev,tNow);
+    ctx.beginPath(); ctx.arc(px,py,5,0,7); ctx.fillStyle="#00b4d8"; ctx.fill(); ctx.strokeStyle="#003049"; ctx.lineWidth=2; ctx.stroke();
+    if(v!=null && Math.abs(v)>=0.05){
+      const flood=v>=0, dir=(flood?s.floodDir:(s.ebbDir??s.floodDir+180))*Math.PI/180;
+      const dx=Math.sin(dir), dy=-Math.cos(dir), L=clamp(Math.abs(v)*11,8,64), x2=px+dx*L, y2=py+dy*L;
+      ctx.strokeStyle="#00b4d8"; ctx.lineWidth=3.5; ctx.beginPath(); ctx.moveTo(px,py); ctx.lineTo(x2,y2); ctx.stroke();
+      const a1=dir+2.6,a2=dir-2.6,hs=10; ctx.fillStyle="#00b4d8";
+      ctx.beginPath(); ctx.moveTo(x2,y2); ctx.lineTo(x2+Math.sin(a1)*hs,y2-Math.cos(a1)*hs); ctx.lineTo(x2+Math.sin(a2)*hs,y2-Math.cos(a2)*hs); ctx.closePath(); ctx.fill();
+      const full=view.latSpan<=0.32;
+      label(ctx, full ? `${s.name}  ${Math.abs(v).toFixed(1)} kt ${flood?'flood':'ebb'}` : `${Math.abs(v).toFixed(1)}`, px+9, py, "#005f73");
+    } else if(view.latSpan<=0.32){
+      label(ctx, `${s.name}  slack`, px+9, py, "#005f73");
+    }
+  }
 }
 
 /* ================================ timeline ================================ */
@@ -350,6 +408,11 @@ function jumpRegion(i){
   regionIdx=i; const bb=REGIONS[i][1];
   view.clon=(bb[0]+bb[2])/2; view.clat=(bb[1]+bb[3])/2;
   view.latSpan=clamp((bb[3]-bb[1])*1.06, MIN_SPAN, MAX_SPAN);
+  // current overlay by region
+  const rk=RKEYS[i];
+  landmarks = rk==="broughtons-discovery" ? BROUGHTONS_LM : [];
+  if(rk==="san-juan-gulf-islands"){ currentStations=[]; loadNoaaCurrents(); }
+  else currentStations = rk==="broughtons-discovery" ? BROUGHTONS_CUR : [];
   if(manifest){
     region=null; draw();
     loadRegion(i).catch(e=>{ setStatus("2.5 km region unavailable — GeoMet 3.7 km: "+e.message, true);

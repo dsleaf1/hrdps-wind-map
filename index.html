@@ -59,7 +59,7 @@
 <body>
 <header>
   <h1>HRDPS Wind Map — BC Coast</h1>
-  <p>HRDPS 10 m wind (ECCC, via the hrdps-ingest pipeline → R2), Beaufort-coloured over a plain coastline — switch between <b>2.5 km</b> (full coast) and <b>1 km</b> (inshore). Big +/− buttons (or scroll/pinch) to zoom, drag to pan; play or scrub the 48 h timeline. In the <b>San Juan &amp; Gulf Islands</b> region, live NOAA tidal-current arrows (cyan) ride the same timeline, and a coloured ring on each station warns when the current opposes the sea steeply enough to break — the wind-against-current hazard that matters most to kayaks. <span style="opacity:.7">build 2026-07-01b</span></p>
+  <p>HRDPS 10 m wind (ECCC, via the hrdps-ingest pipeline → R2), Beaufort-coloured over a plain coastline — switch between <b>2.5 km</b> (full coast) and <b>1 km</b> (inshore). Big +/− buttons (or scroll/pinch) to zoom, drag to pan; play or scrub the 48 h timeline. In the <b>San Juan &amp; Gulf Islands</b> region, live NOAA tidal-current arrows (cyan) ride the same timeline, and a coloured ring on each station warns when the current opposes the sea steeply enough to break — the wind-against-current hazard that matters most to kayaks. <span style="opacity:.7">build 2026-07-01c</span></p>
   <p style="margin:2px 0 0; font-size:.85em"><a href="wave_current_steepness.pdf" target="_blank" rel="noopener" style="color:#dce7ff; text-decoration:underline">How the hazard is computed — physics &amp; data reference (PDF)</a></p>
 </header>
 
@@ -127,6 +127,20 @@
     <span style="display:flex;align-items:center;gap:5px"><span style="width:12px;height:12px;border-radius:50%;border:3px solid #d03b3b"></span>very steep</span>
     <span style="display:flex;align-items:center;gap:5px"><span style="width:12px;height:12px;border-radius:50%;border:3px solid #7a1616"></span>breaking / tide race</span>
   </div>
+  <details id="ringguide" style="display:none; margin:8px 2px 0; font-size:13.5px; line-height:1.55; color:#333; max-width:640px;">
+    <summary style="cursor:pointer; font-weight:600; color:#0b5cad;">Reading the rings — a plain-language guide</summary>
+    <div style="margin-top:8px;">
+      <p style="margin:0 0 8px;">Each ring shows how rough the water is likely to get where the <b>tidal current pushes against the waves</b> — the classic "wind against tide" chop that steepens and breaks. It's driven by the current, so <b>scrub the timeline</b>: a pass can be glassy at slack and light up as the ebb or flood builds against the sea.</p>
+      <ul style="margin:0 0 8px; padding-left:18px;">
+        <li><b style="color:#0ca30c;">Green</b> — gentle; go paddle.</li>
+        <li><b style="color:#c99400;">Yellow</b> — whitecaps building, a bit lumpy.</li>
+        <li><b style="color:#c2521f;">Orange</b> — steep, breaking crests; committing water.</li>
+        <li><b style="color:#c62828;">Red</b> — very steep, lots of breaking.</li>
+        <li><b style="color:#7a1616;">Dark red</b> — tide race / overfalls: steep breaking standing waves. Avoid, or portage the plan.</li>
+      </ul>
+      <p style="margin:0;">Rings are most trustworthy at exposed spots; deep inside the islands the wave forecast is coarse, so treat green there as "no strong signal," not a guarantee. When in doubt, plan to cross a pass <b>near slack water</b>.</p>
+    </div>
+  </details>
   <p class="note" id="srcNote"></p>
 </main>
 
@@ -166,7 +180,7 @@ let RUN=null, TIMES=[], hour=0, regionIdx=0;
 let grid=null, anim=null, coastBB=[];
 // ---- current overlay (region-driven): Broughtons (CHS demo) + San Juan (live NOAA) ----
 let currentStations=[], landmarks=[];
-const SJ_STATIONS=[{"id": "PUG1702", "name": "Rosario Strait", "lat": 48.4581, "lon": -122.7501}, {"id": "PUG1703", "name": "San Juan Channel, south entrance", "lat": 48.461, "lon": -122.952}, {"id": "PCT1416", "name": "Cattle Point, 2.8 miles SSW of", "lat": 48.4, "lon": -123}, {"id": "PUG1629", "name": "Yokeko Point, Deception Pass", "lat": 48.4127, "lon": -122.6132}, {"id": "PUG1734", "name": "Guemes Channel, West Entrance", "lat": 48.5212, "lon": -122.6522}, {"id": "PUG1733", "name": "Thatcher Pass", "lat": 48.5274, "lon": -122.804}, {"id": "PUG1705", "name": "Obstruction Pass, north of Obstruction Island", "lat": 48.6033, "lon": -122.8127}, {"id": "PUG1704", "name": "Peavine Pass, west entrance", "lat": 48.5871, "lon": -122.8193}, {"id": "PUG1719", "name": "Spieden Channel, north of Limestone Point", "lat": 48.6278, "lon": -123.1116}, {"id": "PUG1715", "name": "President Channel, East of Point Disney", "lat": 48.6734, "lon": -123.006}, {"id": "PUG1739", "name": "Bellingham Channel South", "lat": 48.5396, "lon": -122.6834}, {"id": "PUG1721", "name": "Wasp Passage narrows", "lat": 48.5925, "lon": -122.9896}, {"id": "PUG1723", "name": "Upright Channel narrows", "lat": 48.5538, "lon": -122.9226}, {"id": "PUG1722", "name": "Harney Channel, north of Point Hudson", "lat": 48.5897, "lon": -122.9217}];
+const SJ_STATIONS=[{"id": "PUG1702", "name": "Rosario Strait", "lat": 48.4581, "lon": -122.7501}, {"id": "PUG1703", "name": "San Juan Channel, south entrance", "lat": 48.461, "lon": -122.952}, {"id": "PCT1416", "name": "Cattle Point, 2.8 miles SSW of", "lat": 48.4, "lon": -123}, {"id": "PUG1629", "name": "Yokeko Point, Deception Pass", "lat": 48.4127, "lon": -122.6132}, {"id": "PUG1734", "name": "Guemes Channel, West Entrance", "lat": 48.5212, "lon": -122.6522}, {"id": "PUG1733", "name": "Thatcher Pass", "lat": 48.5274, "lon": -122.804}, {"id": "PUG1705", "name": "Obstruction Pass, north of Obstruction Island", "lat": 48.6033, "lon": -122.8127}, {"id": "PUG1704", "name": "Peavine Pass, west entrance", "lat": 48.5871, "lon": -122.8193}, {"id": "PUG1719", "name": "Spieden Channel, north of Limestone Point", "lat": 48.6278, "lon": -123.1116}, {"id": "PUG1715", "name": "President Channel, East of Point Disney", "lat": 48.6734, "lon": -123.006}, {"id": "PUG1739", "name": "Bellingham Channel South", "lat": 48.5396, "lon": -122.6834}, {"id": "PUG1721", "name": "Wasp Passage narrows", "lat": 48.5925, "lon": -122.9896}, {"id": "PUG1723", "name": "Upright Channel narrows", "lat": 48.5538, "lon": -122.9226}, {"id": "PUG1722", "name": "Harney Channel, north of Point Hudson", "lat": 48.5897, "lon": -122.9217}, {"id": "PUG1706", "name": "Peapod Rocks Light, 1.2 nm south of", "lat": 48.6224, "lon": -122.7476}];
 let noaaTok=0;
 async function loadNoaaCurrents(){
   const tok=++noaaTok, out=[];
@@ -459,6 +473,7 @@ function jumpRegion(i){
   if(rk==="san-juan-gulf-islands"){ currentStations=[]; loadNoaaCurrents(); }
   else currentStations = rk==="broughtons-discovery" ? BROUGHTONS_CUR : [];
   $("hazlegend").style.display = rk==="san-juan-gulf-islands" ? "flex" : "none";
+  $("ringguide").style.display = rk==="san-juan-gulf-islands" ? "block" : "none";
   if(manifest){
     region=null; draw();
     loadRegion(i).catch(e=>{ setStatus("2.5 km region unavailable — GeoMet 3.7 km: "+e.message, true);

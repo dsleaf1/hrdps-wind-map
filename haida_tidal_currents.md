@@ -223,6 +223,59 @@ James, Nakwakto (16 kt), Masset Sound (~5 kt) — are **local constriction / nar
 features that sit below this model’s resolution by design.** This is precisely the
 "good for open water and crossings, not for the rips" product scoped at the outset.
 
+## 6e. Phase 4 — Masset narrows: quantitative validation of the strong‑current mechanism
+
+The synthesis above *asserts* that the fierce narrows currents are constriction
+effects. This phase **tests that assertion quantitatively** with a tidal‑prism
+continuity model at the one narrows that has official CHS current predictions —
+Masset Channel (station 09911, ~5 kt).
+
+**Model.** The current through a constriction equals the filling rate of the basin
+behind it divided by the channel cross‑section:
+
+$$ U(t) \;=\; \frac{A_{basin}}{A_{channel}}\,\frac{d\eta_{in}}{dt}, \qquad
+   U_c = \frac{A_b}{A_c}\, i\,\omega_c\, Z_c \ \ \text{per constituent}. $$
+
+**Geometry — measured, not assumed.** The basin (Masset Inlet + Masset Sound south of
+the station at 54.003° N) was measured by rasterising the OpenStreetMap coastline
+(19,550 points fetched for this purpose; 133 m grid) and flood‑filling from a seed
+inside the inlet, with a closure across the channel at the station. The fill sealed
+with no leaks: **A_basin = 230 km²**, and the channel is **~1.1 km wide** at the
+station. Charted fairway depth there is ~8–14 m; A_channel = width × depth.
+
+**Inside tide.** η_in from an 8‑constituent fit to Dinan Bay (09930, inside the
+Inlet): M2 = 0.757 m. Compared to Masset at the mouth (M2 = 1.011 m) the inside tide
+is **attenuated to 0.75× with a −164 min phase lag** — the classic choked‑inlet
+response, which is *why* the narrows current is strong.
+
+![Masset narrows continuity model vs CHS current predictions](figs/masset_validation.svg)
+
+**Validation against CHS (explicit):**
+
+| Check | Continuity model | CHS prediction | Verdict |
+|---|---|---|---|
+| Peak speed (48 h, 2–4 Jul 2026) | **5.1 kt** (11 m depth); 4.0–7.0 kt over 8–14 m | **5.0 kt** | ✓ within 2% at charted depth |
+| Slack timing | at inside HW/LW | 18–35 min *after* Dinan HW/LW | ✓ mechanism holds; small lag = friction/transit |
+| Cycle pattern | tracks diurnal inequality cycle‑by‑cycle | (see figure) | ✓ |
+
+*Reasoning.* This is a **two‑parameter model (measured area, charted depth) with no
+tuning**, and it reproduces the official prediction's amplitude, timing and cycle
+structure. That quantitatively confirms the strong‑narrows mechanism claimed in §6d —
+and conversely confirms that such currents are *predictable* wherever basin geometry
+and an inside tide station exist, even without an official current station.
+
+## 6f. Audit note — v2 harmonics (2026‑07‑01, exact frequency‑domain solution)
+
+A due‑diligence audit re‑derived the map's embedded current constituents by an exact
+per‑constituent solution, $\hat u = -g\,(\Delta\hat Z/L)/(i\omega + r/H)$, applied to
+clean cosine fits of the gauge *elevations* — eliminating the time‑integration step
+of the original pipeline (which carried low‑frequency wander that the least‑squares
+fit had to reject). Findings: the **semidiurnal band agreed within 1–7% / 1–7°**
+(the physics was sound), but the original **diurnal constituents were contaminated**
+(Dixon Q1 amplitude inflated 5×; diurnal phases off 26–65°). The v2 constituents now
+embedded correct this; net 48 h effect ≤ 0.07 kt rms. The 8‑constituent fits capture
+87–92% of the full CHS tide signal at every gauge.
+
 ## 7. Limitations
 
 - **Open‑water only.** Narrows, headland jets, and overfalls (the acute kayak danger)
@@ -240,11 +293,10 @@ features that sit below this model’s resolution by design.** This is precisely
    spectral filter; result robust to friction (0.66–0.79 kt).
 2. ~~**Queen Charlotte Sound**.~~ **Done (§6c)** — deep/frictionless, ~0.5 kt,
    consistent with the paper’s southern regime.
-3. **Interactive map** overlaying the Dixon → Hecate → QC Sound current on the HRDPS
-   wind timeline (Haida Gwaii region), with the same wind‑against‑current steepness
-   rings. *(next)*
-4. **Inlet continuity sub‑models** for the narrows that have CHS current stations
-   (Masset), giving a quantitative validation of the strong‑current mechanism.
+3. ~~**Interactive map**.~~ **Done** — embedded harmonics (v2, §6f) on the wind map's
+   Haida Gwaii region, build 2026‑07‑01g.
+4. ~~**Inlet continuity sub‑models**.~~ **Done (§6e)** — Masset continuity model
+   validates the strong‑narrows mechanism: 5.1 kt predicted vs 5.0 kt CHS.
 
 ## 9. References
 

@@ -59,7 +59,7 @@
 <body>
 <header>
   <h1>HRDPS Wind Map — BC Coast</h1>
-  <p>HRDPS 10 m wind (ECCC, via the hrdps-ingest pipeline → R2), Beaufort-coloured over a plain coastline — switch between <b>2.5 km</b> (full coast) and <b>1 km</b> (inshore). Big +/− buttons (or scroll/pinch) to zoom, drag to pan; play or scrub the 48 h timeline. In the <b>San Juan &amp; Gulf Islands</b> region, live NOAA tidal-current arrows (cyan) ride the same timeline, and a coloured ring on each station warns when the current opposes the sea steeply enough to break — the wind-against-current hazard that matters most to kayaks. Hover (or tap) a station for its speed, set and hazard. The <b>Haida Gwaii</b> region adds a barotropic tidal-current model (Dixon Entrance → Queen Charlotte Sound). <span style="opacity:.7">build 2026-07-01g</span></p>
+  <p>HRDPS 10 m wind (ECCC, via the hrdps-ingest pipeline → R2), Beaufort-coloured over a plain coastline — switch between <b>2.5 km</b> (full coast) and <b>1 km</b> (inshore). Big +/− buttons (or scroll/pinch) to zoom, drag to pan; play or scrub the 48 h timeline. In the <b>San Juan &amp; Gulf Islands</b> region, live NOAA tidal-current arrows (cyan) ride the same timeline, and a coloured ring on each station warns when the current opposes the sea steeply enough to break — the wind-against-current hazard that matters most to kayaks. Hover (or tap) a station for its speed, set and hazard. The <b>Haida Gwaii</b> region adds a barotropic tidal-current model (Dixon Entrance → Queen Charlotte Sound). <span style="opacity:.7">build 2026-07-01h</span></p>
   <p style="margin:2px 0 0; font-size:.85em"><a href="wave_current_steepness.pdf" target="_blank" rel="noopener" style="color:#dce7ff; text-decoration:underline">How the hazard is computed — physics &amp; data reference (PDF)</a></p>
 </header>
 
@@ -240,14 +240,32 @@ async function attachWaves(stns){   // one Open-Meteo Marine multi-point call �
 const HAIDA_TIDES={"tref": "2026-01-01T00:00:00Z", "axes": [{"name": "Dixon Entrance", "bearing": 88, "points": [[54.3, -132.6], [54.33, -131.7], [54.28, -130.9]], "constituents": [{"n": "M2", "w": 0.0001405189, "amp": 0.5105, "ph": -2.0658}, {"n": "S2", "w": 0.0001454441, "amp": 0.1792, "ph": 2.4498}, {"n": "N2", "w": 0.0001378797, "amp": 0.1022, "ph": -1.7969}, {"n": "K2", "w": 0.0001458423, "amp": 0.0611, "ph": 0.0259}, {"n": "K1", "w": 7.29212e-05, "amp": 0.0523, "ph": -3.1216}, {"n": "O1", "w": 6.75977e-05, "amp": 0.034, "ph": -2.7457}, {"n": "P1", "w": 7.25229e-05, "amp": 0.0207, "ph": 3.1398}, {"n": "Q1", "w": 6.49585e-05, "amp": 0.0083, "ph": -2.9451}]}, {"name": "Hecate Strait", "bearing": 166, "points": [[53.55, -131.3], [53.0, -131.05], [52.35, -131.0]], "constituents": [{"n": "M2", "w": 0.0001405189, "amp": 0.5479, "ph": 1.3869}, {"n": "S2", "w": 0.0001454441, "amp": 0.1831, "ph": -0.3765}, {"n": "N2", "w": 0.0001378797, "amp": 0.1128, "ph": 1.7206}, {"n": "K2", "w": 0.0001458423, "amp": 0.0639, "ph": -2.8594}, {"n": "K1", "w": 7.29212e-05, "amp": 0.0998, "ph": 0.4354}, {"n": "O1", "w": 6.75977e-05, "amp": 0.0671, "ph": 1.5086}, {"n": "P1", "w": 7.25229e-05, "amp": 0.0303, "ph": -0.055}, {"n": "Q1", "w": 6.49585e-05, "amp": 0.0163, "ph": 0.4689}]}, {"name": "Queen Charlotte Sound", "bearing": 126, "points": [[51.6, -129.7], [51.25, -129.0], [50.95, -128.5]], "constituents": [{"n": "M2", "w": 0.0001405189, "amp": 0.2337, "ph": -0.1997}, {"n": "S2", "w": 0.0001454441, "amp": 0.0792, "ph": -1.8401}, {"n": "N2", "w": 0.0001378797, "amp": 0.0549, "ph": -0.013}, {"n": "K2", "w": 0.0001458423, "amp": 0.0299, "ph": 1.7702}, {"n": "K1", "w": 7.29212e-05, "amp": 0.1143, "ph": -1.242}, {"n": "O1", "w": 6.75977e-05, "amp": 0.0923, "ph": -0.0805}, {"n": "P1", "w": 7.25229e-05, "amp": 0.0338, "ph": -1.6078}, {"n": "Q1", "w": 6.49585e-05, "amp": 0.012, "ph": 2.1411}]}]};
 const HAIDA_TREF=Date.parse(HAIDA_TIDES.tref);
 function harmSpeed(cons,tMs){ const tau=(tMs-HAIDA_TREF)/1000; let u=0; for(const c of cons) u+=c.amp*Math.cos(c.w*tau+c.ph); return u; }  // signed kt, + toward bearing
+const CHS_HAIDA=[  // official CHS narrows prediction inside the region (dirs from wcdp1 at extrema)
+ {"id":"63af0f126a2b9417c03562a6","name":"Masset Channel","lat":54.0029,"lon":-132.1543,"floodDir":154,"ebbDir":336}];
 async function loadHaidaCurrents(){
   const tok=++noaaTok, out=[];
   for(const ax of HAIDA_TIDES.axes){ const fd=ax.bearing, ed=(ax.bearing+180)%360;
     ax.points.forEach(p=> out.push({name:ax.name, lat:p[0], lon:p[1], cons:ax.constituents, floodDir:fd, ebbDir:ed})); }
-  currentStations=out; draw();               // currents need no network — draw immediately
-  await attachWaves(out);
+  currentStations=out; draw();               // model currents need no network — draw immediately
+  const iso=ms=>new Date(ms).toISOString().slice(0,19)+"Z";
+  const f=iso(Date.now()-24*3600e3), t=iso(Date.now()+72*3600e3);
+  await Promise.all([attachWaves(out), ...CHS_HAIDA.map(async st=>{
+    try{
+      const u=`https://api-iwls.dfo-mpo.gc.ca/api/v1/stations/${st.id}/data?time-series-code=wcp1-events&from=${f}&to=${t}`;
+      let ev=null;
+      for(let a=0;a<2 && !(Array.isArray(ev)&&ev.length);a++){
+        if(a) await new Promise(r=>setTimeout(r,900));
+        try{ ev=await (await fetch(u)).json(); }catch(_){}
+      }
+      if(!Array.isArray(ev)||!ev.length) return;
+      const s={ name:st.name, lat:st.lat, lon:st.lon, src:"CHS",
+        floodDir:st.floodDir, ebbDir:st.ebbDir,
+        ev:ev.map(e=>[Date.parse(e.eventDate), e.qualifier==="SLACK"?0:(e.qualifier==="EXTREMA_EBB"?-e.value:e.value)]) };
+      out.push(s); await attachWaves([s]);
+    }catch(e){}
+  })]);
   if(tok!==noaaTok) return;
-  draw();
+  currentStations=out; draw();
 }
 const BROUGHTONS_CUR=[{"name":"Blackney Passage","lat":50.54655,"lon":-126.65744,"floodDir":180,"ev":[[1782547560000,0.6],[1782552900000,0.0],[1782566340000,-2.3],[1782580080000,0.0],[1782590700000,3.0],[1782604140000,0.0],[1782617160000,-1.8],[1782631500000,0.0],[1782636780000,0.5],[1782641580000,0.0],[1782655500000,-2.3],[1782668460000,0.0],[1782679500000,3.2],[1782692640000,0.0],[1782705420000,-1.9],[1782720420000,0.0],[1782725580000,0.5],[1782730140000,0.0],[1782744780000,-2.3],[1782756900000,0.0],[1782768120000,3.4],[1782781140000,0.0],[1782793620000,-1.9],[1782808680000,0.0],[1782814080000,0.5],[1782818640000,0.0],[1782833880000,-2.4],[1782845520000,0.0],[1782856740000,3.5],[1782869700000,0.0],[1782881820000,-2.0],[1782896640000,0.0],[1782902460000,0.6],[1782907200000,0.0],[1782922740000,-2.4],[1782934200000,0.0],[1782945300000,3.5],[1782958260000,0.0],[1782970260000,-2.2],[1782984660000,0.0],[1782990900000,0.6],[1782995940000,0.0],[1783011420000,-2.4],[1783022940000,0.0],[1783033920000,3.4],[1783046820000,0.0],[1783058760000,-2.3],[1783073100000,0.0],[1783079700000,0.7],[1783085040000,0.0],[1783100100000,-2.3],[1783111740000,0.0],[1783122600000,3.2],[1783135200000,0.0],[1783147500000,-2.5],[1783161900000,0.0],[1783168800000,0.8],[1783174680000,0.0],[1783188900000,-2.0],[1783200660000,0.0],[1783211400000,2.9],[1783223580000,0.0]]},{"name":"Weynton Passage","lat":50.59603,"lon":-126.78154,"floodDir":200,"ev":[[1782545040000,1.3],[1782552120000,0.0],[1782566460000,-4.2],[1782577560000,0.0],[1782589620000,4.0],[1782604860000,0.0],[1782614700000,-2.8],[1782626520000,0.0],[1782634020000,1.3],[1782640980000,0.0],[1782655140000,-4.4],[1782666060000,0.0],[1782678060000,4.2],[1782693240000,0.0],[1782703140000,-2.9],[1782715200000,0.0],[1782722880000,1.4],[1782729780000,0.0],[1782743760000,-4.5],[1782754560000,0.0],[1782766440000,4.4],[1782781500000,0.0],[1782791400000,-3.0],[1782803700000,0.0],[1782811620000,1.4],[1782818520000,0.0],[1782832380000,-4.6],[1782843000000,0.0],[1782854940000,4.5],[1782869700000,0.0],[1782879600000,-3.1],[1782892140000,0.0],[1782900240000,1.4],[1782907140000,0.0],[1782920940000,-4.6],[1782931500000,0.0],[1782943500000,4.5],[1782957960000,0.0],[1782967860000,-3.2],[1782980580000,0.0],[1782988800000,1.4],[1782995760000,0.0],[1783009620000,-4.5],[1783020000000,0.0],[1783032180000,4.6],[1783046220000,0.0],[1783056360000,-3.4],[1783069080000,0.0],[1783077300000,1.5],[1783084500000,0.0],[1783098300000,-4.2],[1783108620000,0.0],[1783120980000,4.5],[1783134540000,0.0],[1783144980000,-3.6],[1783157700000,0.0],[1783165980000,1.5],[1783173660000,0.0],[1783187220000,-3.8],[1783197360000,0.0],[1783209900000,4.3],[1783222920000,0.0],[1783233780000,-3.8]]}];
 const BROUGHTONS_LM=[{name:"SoW Camp", lat:50.60259, lon:-126.69081}];
@@ -529,7 +547,7 @@ function jumpRegion(i){
   $("hazlegend").style.display = hasRings ? "flex" : "none";
   $("ringguide").style.display = hasRings ? "block" : "none";
   const cn=$("curNote");
-  if(rk==="haida-gwaii"){ cn.style.display="block"; cn.innerHTML='Currents = Claude barotropic tidal model (open-water estimate from CHS tide harmonics — <b>not</b> official predictions; strong narrows and rips are out of scope). Method &amp; validation: <a href="haida_tidal_currents.md" style="color:#0b5cad">haida_tidal_currents.md</a>.'; }
+  if(rk==="haida-gwaii"){ cn.style.display="block"; cn.innerHTML='Currents = Claude barotropic tidal model (open-water estimate from CHS tide harmonics — <b>not</b> official predictions; strong narrows and rips are out of scope) + official CHS prediction at Masset Channel. Method &amp; validation: <a href="haida_tidal_currents.md" style="color:#0b5cad">haida_tidal_currents.md</a>.'; }
   else if(rk==="san-juan-gulf-islands"){ cn.style.display="block"; cn.innerHTML="Currents = live NOAA CO-OPS (US) + CHS/DFO IWLS (Canada) predictions."; }
   else cn.style.display="none";
   if(manifest){
@@ -632,7 +650,7 @@ $("srcNote").innerHTML="Wind = HRDPS Continental (Environment Canada) at native 
 buildLegend();
 indexCoast();   // index the inlined NE-10m fallback first
 // upgrade to high-res OSM coastline if the served file is reachable (http; double-click file:// keeps NE)
-fetch("coastline_hires.json").then(r=>r.json()).then(j=>{ if(j&&j.segments&&j.segments.length){ coast=j; indexCoast(); draw(); } }).catch(()=>{});
+fetch("coastline_hires.json?v=2026-07-01h").then(r=>r.json()).then(j=>{ if(j&&j.segments&&j.segments.length){ coast=j; indexCoast(); draw(); } }).catch(()=>{});
 loadManifest()
   .then(()=>jumpRegion(0))
   .catch(e=>{

@@ -59,7 +59,7 @@
 <body>
 <header>
   <h1>HRDPS Wind Map — BC Coast</h1>
-  <p>HRDPS 10 m wind (ECCC, via the hrdps-ingest pipeline → R2), Beaufort-coloured over a plain coastline — switch between <b>2.5 km</b> (full coast) and <b>1 km</b> (inshore). Big +/− buttons (or scroll/pinch) to zoom, drag to pan; play or scrub the 48 h timeline. In the <b>San Juan &amp; Gulf Islands</b> region, live NOAA tidal-current arrows (cyan) ride the same timeline, and a coloured ring on each station warns when the current opposes the sea steeply enough to break — the wind-against-current hazard that matters most to kayaks. Hover (or tap) a station for its speed, set and hazard. The <b>Haida Gwaii</b> region adds a barotropic tidal-current model (Dixon Entrance, Hecate Strait, Queen Charlotte Sound + the outer Pacific coasts). <span style="opacity:.7">build 2026-07-01i</span></p>
+  <p>HRDPS 10 m wind (ECCC, via the hrdps-ingest pipeline → R2), Beaufort-coloured over a plain coastline — switch between <b>2.5 km</b> (full coast) and <b>1 km</b> (inshore). Big +/− buttons (or scroll/pinch) to zoom, drag to pan; play or scrub the 48 h timeline. In the <b>San Juan &amp; Gulf Islands</b> and <b>Puget Sound</b> regions, live NOAA + CHS tidal-current arrows (cyan) ride the same timeline, and a coloured ring on each station warns when the current opposes the sea steeply enough to break — the wind-against-current hazard that matters most to kayaks. Hover (or tap) a station for its speed, set and hazard. The <b>Haida Gwaii</b> region adds a barotropic tidal-current model (Dixon Entrance, Hecate Strait, Queen Charlotte Sound + the outer Pacific coasts). <span style="opacity:.7">build 2026-07-02a</span></p>
   <p style="margin:2px 0 0; font-size:.85em"><a href="wave_current_steepness.pdf" target="_blank" rel="noopener" style="color:#dce7ff; text-decoration:underline">How the hazard is computed — physics &amp; data reference (PDF)</a></p>
 </header>
 
@@ -190,15 +190,52 @@ const CHS_SJ=[
  {"id":"63aef1866a2b9417c035030f","name":"Dodd Narrows","lat":49.1344,"lon":-123.8171,"floodDir":354,"ebbDir":154},
  {"id":"63aeee896a2b9417c034d337","name":"Race Passage","lat":48.3067,"lon":-123.5367,"floodDir":44,"ebbDir":231},
  {"id":"63aeee1d84e5432cd3b6c500","name":"Juan de Fuca East","lat":48.2317,"lon":-123.5300,"floodDir":98,"ebbDir":264}];
+// Puget Sound NOAA current stations (curated 2026-07-02; "Libby Point" = requested "Lippy Point")
+const PS_STATIONS=[
+ {"id":"PUG1635","name":"New Dungeness Light","lat":48.2335,"lon":-123.1334},
+ {"id":"PUG1630","name":"Kanem Point","lat":48.1077,"lon":-122.9736},
+ {"id":"PUG1623","name":"Point Wilson","lat":48.1501,"lon":-122.7454},
+ {"id":"PUG1619","name":"Marrowstone Point","lat":48.1063,"lon":-122.6725},
+ {"id":"PUG1615","name":"Nodule Point","lat":48.0287,"lon":-122.6609},
+ {"id":"PUG1610","name":"Foulweather Bluff","lat":47.9543,"lon":-122.5786},
+ {"id":"PUG1509","name":"Point Jefferson","lat":47.7445,"lon":-122.4680},
+ {"id":"PUG1515","name":"West Point","lat":47.6621,"lon":-122.4417},
+ {"id":"PUG1516","name":"Alki Point","lat":47.5761,"lon":-122.4278},
+ {"id":"PUG1513","name":"Rich Passage","lat":47.5700,"lon":-122.5298},
+ {"id":"PUG1517","name":"Blake Island","lat":47.5203,"lon":-122.4879},
+ {"id":"PUG1519","name":"Point Richmond","lat":47.3766,"lon":-122.5287},
+ {"id":"PUG1501","name":"Agate Passage","lat":47.7110,"lon":-122.5671},
+ {"id":"PUG1510","name":"Port Washington Narrows","lat":47.5796,"lon":-122.6307},
+ {"id":"PUG1601","name":"Hazel Point","lat":47.6912,"lon":-122.7628},
+ {"id":"PUG1602","name":"South Point","lat":47.8217,"lon":-122.6767},
+ {"id":"PUG1608","name":"Hood Canal Entrance","lat":47.9284,"lon":-122.6388},
+ {"id":"PUG1522","name":"Dalco Passage","lat":47.3251,"lon":-122.5247},
+ {"id":"PUG1523","name":"Gig Harbor","lat":47.3242,"lon":-122.5719},
+ {"id":"PUG1524","name":"Narrows N end","lat":47.3060,"lon":-122.5500},
+ {"id":"PUG1528","name":"Narrows S end","lat":47.2613,"lon":-122.5583},
+ {"id":"PUG1530","name":"Hale Passage W","lat":47.2814,"lon":-122.6631},
+ {"id":"PUG1529","name":"Hale Passage E","lat":47.2479,"lon":-122.5956},
+ {"id":"PUG1532","name":"Steilacoom","lat":47.1824,"lon":-122.6056},
+ {"id":"PUG1536","name":"Pitt Passage","lat":47.2238,"lon":-122.7114},
+ {"id":"PUG1535","name":"Balch Passage","lat":47.1906,"lon":-122.6916},
+ {"id":"PUG1534","name":"Nisqually Reach","lat":47.1169,"lon":-122.6989},
+ {"id":"PUG1538","name":"Devils Head","lat":47.1607,"lon":-122.7894},
+ {"id":"PUG1539","name":"Dana Passage","lat":47.1631,"lon":-122.8681},
+ {"id":"PUG1540","name":"Budd Inlet","lat":47.1402,"lon":-122.9214},
+ {"id":"PUG1543","name":"Squaxin Passage","lat":47.1763,"lon":-122.9190},
+ {"id":"PUG1545","name":"Libby Point","lat":47.1989,"lon":-122.9890},
+ {"id":"PUG1542","name":"Peale Passage N","lat":47.2175,"lon":-122.9146},
+ {"id":"PUG1548","name":"Pickering Passage N","lat":47.3057,"lon":-122.8509},
+ {"id":"PUG1547","name":"Pickering off Graham Pt","lat":47.2472,"lon":-122.9259}];
 let noaaTok=0;
-async function loadNoaaCurrents(){
+async function loadNoaaCurrents(noaa=SJ_STATIONS, chs=CHS_SJ){
   const tok=++noaaTok, out=[];
   const bd=new Date(Date.now()-24*3600e3);
   const begin=`${bd.getUTCFullYear()}${String(bd.getUTCMonth()+1).padStart(2,"0")}${String(bd.getUTCDate()).padStart(2,"0")}`;
   const iso=ms=>new Date(ms).toISOString().slice(0,19)+"Z";
   const f=iso(Date.now()-24*3600e3), t=iso(Date.now()+72*3600e3);
   await Promise.all([
-    ...SJ_STATIONS.map(async st=>{
+    ...noaa.map(async st=>{
       try{  // hourly signed curve (interval=60): NOAA's own interpolation between our samples
         const u=`https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?product=currents_predictions&station=${st.id}&begin_date=${begin}&range=96&interval=60&units=english&time_zone=gmt&format=json`;
         const cp=((await (await fetch(u)).json()).current_predictions||{}).cp||[];
@@ -208,7 +245,7 @@ async function loadNoaaCurrents(){
           ev:cp.map(e=>[Date.parse(e.Time.replace(" ","T")+":00Z"), parseFloat(e.Velocity_Major)]) });
       }catch(e){}
     }),
-    ...CHS_SJ.map(async st=>{
+    ...chs.map(async st=>{
       try{  // CHS slack/max events; ebb sign from qualifier (IWLS values are unsigned)
         const u=`https://api-iwls.dfo-mpo.gc.ca/api/v1/stations/${st.id}/data?time-series-code=wcp1-events&from=${f}&to=${t}`;
         let ev=null;
@@ -541,14 +578,16 @@ function jumpRegion(i){
   const rk=RKEYS[i];
   landmarks = rk==="broughtons-discovery" ? BROUGHTONS_LM : [];
   if(rk==="san-juan-gulf-islands"){ currentStations=[]; loadNoaaCurrents(); }
+  else if(rk==="puget-sound"){ currentStations=[]; loadNoaaCurrents(PS_STATIONS,[]); }
   else if(rk==="haida-gwaii"){ currentStations=[]; loadHaidaCurrents(); }
   else currentStations = rk==="broughtons-discovery" ? BROUGHTONS_CUR : [];
-  const hasRings = rk==="san-juan-gulf-islands" || rk==="haida-gwaii";
+  const hasRings = rk==="san-juan-gulf-islands" || rk==="haida-gwaii" || rk==="puget-sound";
   $("hazlegend").style.display = hasRings ? "flex" : "none";
   $("ringguide").style.display = hasRings ? "block" : "none";
   const cn=$("curNote");
   if(rk==="haida-gwaii"){ cn.style.display="block"; cn.innerHTML='Currents = Claude barotropic tidal model (open-water estimate from CHS tide harmonics — <b>not</b> official predictions; strong narrows and rips are out of scope) + official CHS prediction at Masset Channel. Method &amp; validation: <a href="haida_tidal_currents.md" style="color:#0b5cad">haida_tidal_currents.md</a>.'; }
   else if(rk==="san-juan-gulf-islands"){ cn.style.display="block"; cn.innerHTML="Currents = live NOAA CO-OPS (US) + CHS/DFO IWLS (Canada) predictions."; }
+  else if(rk==="puget-sound"){ cn.style.display="block"; cn.innerHTML="Currents = live NOAA CO-OPS predictions (hourly signed curves)."; }
   else cn.style.display="none";
   if(manifest){
     region=null; draw();
